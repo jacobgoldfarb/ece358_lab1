@@ -14,27 +14,19 @@ def main():
 
 
 def run_MM1_simul():
-    des = DiscreteEventSimulator(service_rate=2)
+    des = DiscreteEventSimulator(service_rate=500)
     # expected number of packets per second
     arrival_rate = 10
     num_packets = 50
-    for i in range(0, num_packets):
-        time.sleep(NumberGenerator.poisson(arrival_rate))
-        print(f"Added packet {i}")
-        new_packet = Packet()
-        des.add_packet(new_packet)
+    des.create_table(num_packets, arrival_rate)
 
 def run_MM1k_simul(k=10):
     des = DiscreteEventSimulator(capacity=k, service_rate=500)
     # expected number of packets per second
     arrival_rate = 10
     num_packets = 50
-    for i in range(0, num_packets):
-        time.sleep(NumberGenerator.poisson(arrival_rate))
-        print(f"Added packet {i}")
-        new_packet = Packet()
-        des.add_packet(new_packet)
-    print(f"Loss ratio: {des.loss_ratio()}")
+    des.create_table(num_packets, arrival_rate)
+    print(des)
 
 def get_stats(num_trials=1000, lambd=75):
     random_vars = [NumberGenerator.poisson(lambd) for _ in range(0, num_trials)]

@@ -5,8 +5,12 @@ from NumberGenerator import NumberGenerator
 class Event:
 
     def __init__(self,
-                 type='Departure',
-                 time=datetime.now()):
+                 arrival_time,
+                 service_time,
+                 type='Arrival'):
         self.type = type
-        self.time = time
+        self.arrival_time = arrival_time
+        self.departure_time = 0
+        self.service_time = service_time
         self.length = NumberGenerator.poisson(5)
+
