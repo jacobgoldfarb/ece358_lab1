@@ -8,10 +8,11 @@ from Event import Event
 class DiscreteEventSimulator:
 
     # 0 capacity corresponds to infinite queue size
-    def __init__(self, capacity=0, num_servers=1, service_rate=500):
+    def __init__(self, capacity=0, num_servers=1, service_rate=500, simulation_time=1000):
         self.service_rate = service_rate
         self.num_servers = num_servers
         self.capacity = capacity
+        self.simulation_time = simulation_time
 
         self.num_packets_lost = 0
         self.num_packets_passed = 0
