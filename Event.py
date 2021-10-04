@@ -1,16 +1,17 @@
-from datetime import datetime
-from NumberGenerator import NumberGenerator
-
-
 class Event:
-
+    eligible_event_types = set(['Packet', 'Observer'])
     def __init__(self,
                  arrival_time,
-                 service_time,
-                 type='Arrival'):
+                 length=0,
+                 transmission_rate=1,
+                 type='Packet'):
+        if type not in self.eligible_event_types:
+            raise
         self.type = type
         self.arrival_time = arrival_time
         self.departure_time = 0
-        self.service_time = service_time
-        self.length = NumberGenerator.poisson(5)
+        self.packet_length = length
+        self.service_time = length/transmission_rate
+        self.queue_size = 0
+        self.dropped = False
 

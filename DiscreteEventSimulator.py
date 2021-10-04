@@ -8,53 +8,106 @@ from Event import Event
 class DiscreteEventSimulator:
 
     # 0 capacity corresponds to infinite queue size
-    def __init__(self, capacity=0, num_servers=1, service_rate=500, simulation_time=1000):
-        self.service_rate = service_rate
-        self.num_servers = num_servers
+    def __init__(self, capacity=0, transmission_rate=1_000_000, simulation_time=1_000):
+        self.transmission_rate = transmission_rate
         self.capacity = capacity
         self.simulation_time = simulation_time
 
+        self.packet_queue = queue.Queue(capacity)
         self.num_packets_lost = 0
         self.num_packets_passed = 0
         self.queueing_delay = 0
         self.events = []
+        self.observer_events = []
+        self.dropped_events = []
 
     def __repr__(self):
-        return "Event\tArrival\tLength (bits)\tService Time\tDeparture\n" + "".join([f"{event.type}\t"
-                  f"{event.arrival_time}\t"
-                  f"{event.length}\t"
-                  f"{event.service_time}\t"
-                  f"{event.departure_time}\n" for event in self.events])
+        return "Arrival Time\t\tService Time\t\tDeparture\t\tPacket Length\t\tQueue Size\n" + "".join(
+            [f"{event.arrival_time}\t"
+             f"{event.service_time}\t"
+             f"{event.departure_time}\t"
+             f"{event.packet_length}\t"
+             f"{event.queue_size}\n"
+             for
+             event in self.events]) + f" Dropped Events: {len(self.dropped_events)}\n " \
+                                      f"Succeeded Events: {len(self.events)} \n"
 
+    def create_table(self, num_packets, arrival_rate, observer_rate):
+        return self.generate_events(num_packets, arrival_rate, observer_rate)
 
-    def create_table(self, num_packets, arrival_rate):
-        self.generate_events(num_packets, arrival_rate)
+    def generate_events(self, arrival_rate, average_packet_length, observer_rate):
+        self.generate_packet_events(arrival_rate, average_packet_length)
+        self.simulate()
+        return self.generate_observer_events(observer_rate)
 
-
-    def generate_events(self, num_packets, arrival_rate):
+    def generate_packet_events(self, arrival_rate, average_packet_length):
         self.events = [Event(
-            arrival_time=NumberGenerator.poisson(arrival_rate),
-            service_time=NumberGenerator.poisson(self.service_rate)
+            arrival_time=NumberGenerator.poisson(arrival_rate),  # length/arrival rate
+            length=NumberGenerator.poisson(1 / average_packet_length),
+            transmission_rate=self.transmission_rate
         )]
         self.events[0].departure_time = self.events[0].arrival_time + self.events[0].service_time
-        for i in range(1, num_packets):
+        i = 1
+        while self.events[-1].arrival_time < self.simulation_time:
             prev_event = self.events[i - 1]
             new_event = Event(
-                arrival_time=prev_event.arrival_time+NumberGenerator.poisson(arrival_rate),
-                service_time=NumberGenerator.poisson(self.service_rate)
+                arrival_time=prev_event.arrival_time + NumberGenerator.poisson(arrival_rate),
+                length=NumberGenerator.poisson(1 / average_packet_length),
+                transmission_rate=self.transmission_rate
             )
             self.events.append(new_event)
-        self.generate_departure_times(num_packets)
+            i += 1
 
-    def generate_departure_times(self, num_packets):
-        for i in range(1, num_packets):
+    def generate_observer_events(self, observer_rate):
+        self.observer_events = [Event(arrival_time=NumberGenerator.poisson(observer_rate))]
+        i = 1
+        while self.observer_events[-1].arrival_time < self.simulation_time:
+            prev_event = self.observer_events[i - 1]
+            new_event = Event(
+                arrival_time=prev_event.arrival_time + NumberGenerator.poisson(observer_rate),
+            )
+            self.observer_events.append(new_event)
+            i += 1
+        return self.get_observer_avg_num_packets_in_q()
+
+    def get_observer_avg_num_packets_in_q(self):
+        packets_in_q = [self.num_packets_in_q(event.arrival_time) for event in self.observer_events]
+        avg_packets_in_q = sum(packets_in_q) / len(packets_in_q)
+        return avg_packets_in_q
+
+    def sort_events(self):
+        arrival_events = [('Arrival', event.arrival_time) for event in self.events]
+        departure_events = [('Departure', event.departure_time) for event in self.events]
+        observer_events = [('Observer', event.arrival_time) for event in self.observer_events]
+        sorted_events = sorted(observer_events + departure_events + arrival_events, key=lambda x: x[1])
+        print("\n".join([f"{event[0]}: {event[1]}" for event in sorted_events]))
+
+    def num_packets_in_q(self, at_time):
+        return len([0 for event in self.events if event.arrival_time < at_time < event.departure_time])
+
+    def simulate(self):
+        # Set departure times
+        i = 1
+        while i < len(self.events):
             prev_event = self.events[i - 1]
             cur_event = self.events[i]
-            queue_idle = prev_event.departure_time < cur_event.arrival_time
-            if queue_idle:
-                cur_event.departure_time = cur_event.arrival_time + cur_event.service_time
-            else:
+            should_enqueue = prev_event.departure_time > cur_event.arrival_time
+            if self.packet_queue.full():
+                cur_event.dropped = True
+                self.dropped_events.append(self.events.pop(i))
+                # Don't increment so we don't skip any events
+            elif should_enqueue:
                 cur_event.departure_time = prev_event.departure_time + cur_event.service_time
+                self.packet_queue.put(cur_event.departure_time)
+                cur_event.queue_size = self.packet_queue.qsize()
+                i += 1
+            else:
+                cur_event.departure_time = cur_event.arrival_time + cur_event.service_time
+                i += 1
+            self.move_queue(cur_event.arrival_time)
 
-
-
+    def move_queue(self, cur_time):
+        if self.packet_queue.empty():
+            return
+        while self.packet_queue.empty() and not self.packet_queue.queue[0] < cur_time:
+            self.packet_queue.get(False)

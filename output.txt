@@ -1,0 +1,7 @@
+Hello World!
+(0.01328878402399326, 0.0001765393231227894)
+Dropped remaining: 0
+Num packets in q:
+
+ average number of packets in q 0.020859441322714962:
+Packets generated: 9973
