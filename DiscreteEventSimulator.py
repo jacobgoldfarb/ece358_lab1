@@ -20,6 +20,7 @@ class DiscreteEventSimulator:
         self.events = []
         self.observer_events = []
         self.dropped_events = []
+        self.all_events = []
 
     def __repr__(self):
         return "Arrival Time\t\tService Time\t\tDeparture\t\tPacket Length\t\tQueue Size\n" + "".join(
@@ -71,16 +72,28 @@ class DiscreteEventSimulator:
         return self.get_observer_avg_num_packets_in_q()
 
     def get_observer_avg_num_packets_in_q(self):
-        packets_in_q = [self.num_packets_in_q(event.arrival_time) for event in self.observer_events]
-        avg_packets_in_q = sum(packets_in_q) / len(packets_in_q)
-        return avg_packets_in_q
+        event_pointer = 0
+        total_q_size = 0
+        all_events = sorted(self.observer_events + self.events, key=lambda event: event.arrival_time)
+        for event in all_events
+        for observer in self.observer_events:
+            observer_time = observer.arrival_time
+            while event_pointer < len(self.events) and self.events[event_pointer].arrival_time < observer_time:
+                event_pointer += 1
+            if not event_pointer < len(self.events):
+                break
+            cur_event = self.events[event_pointer]
+            total_q_size += cur_event.queue_size
+        # packets_in_q = [self.num_packets_in_q(event.arrival_time) for event in self.observer_events]
+        # avg_packets_in_q = sum(packets_in_q) / len(packets_in_q)
+        return total_q_size / len(self.observer_events)
 
-    def sort_events(self):
+    def get_sorted_events(self):
         arrival_events = [('Arrival', event.arrival_time) for event in self.events]
         departure_events = [('Departure', event.departure_time) for event in self.events]
         observer_events = [('Observer', event.arrival_time) for event in self.observer_events]
         sorted_events = sorted(observer_events + departure_events + arrival_events, key=lambda x: x[1])
-        print("\n".join([f"{event[0]}: {event[1]}" for event in sorted_events]))
+        return sorted_events
 
     def num_packets_in_q(self, at_time):
         return len([0 for event in self.events if event.arrival_time < at_time < event.departure_time])

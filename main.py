@@ -19,21 +19,17 @@ def run_MM1_simul():
     rhos = [0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
     transmission_rate = 1_000_000
     avg_packet_length = 2000
-    des = DiscreteEventSimulator(transmission_rate=transmission_rate)
+    des = DiscreteEventSimulator(transmission_rate=transmission_rate, simulation_time=1000)
     avg_packet_for_all_rhos = []
-    # pool_results = []
-    # pool = ThreadPool(processes=len(rhos))
+
     for i, rho in enumerate(rhos):
         print(f"Iteration {i}, rho: {rho}")
         arrival_rate = rho * transmission_rate / avg_packet_length
         observer_rate = arrival_rate * 5
         avg_q_size = des.create_table(arrival_rate, avg_packet_length, observer_rate)
         print(f"Q size: {avg_q_size}")
-        # pool_result = pool.apply_async(des.create_table, (arrival_rate, avg_packet_length, observer_rate))
-        # pool_results.append(pool_result)
-        avg_packet_for_all_rhos.add(avg_q_size)
+        avg_packet_for_all_rhos.append(avg_q_size)
 
-    # avg_packet_for_all_rhos.append([r.get() for r in pool_results])
     plt.plot(avg_packet_for_all_rhos)
     plt.show()
     print(f"Packets generated: {len(des.events)}")
