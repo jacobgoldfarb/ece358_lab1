@@ -19,7 +19,7 @@ def run_MM1_simul():
     rhos = [0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
     transmission_rate = 1_000_000
     avg_packet_length = 2000
-    des = DiscreteEventSimulator(transmission_rate=transmission_rate, simulation_time=1000)
+    des = DiscreteEventSimulator(transmission_rate=transmission_rate, simulation_time=10)
     avg_packet_for_all_rhos = []
 
     for i, rho in enumerate(rhos):
@@ -30,7 +30,7 @@ def run_MM1_simul():
         print(f"Q size: {avg_q_size}")
         avg_packet_for_all_rhos.append(avg_q_size)
 
-    plt.plot(avg_packet_for_all_rhos)
+    plt.plot(rhos, avg_packet_for_all_rhos)
     plt.show()
     print(f"Packets generated: {len(des.events)}")
 

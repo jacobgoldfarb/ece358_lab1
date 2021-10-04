@@ -72,20 +72,18 @@ class DiscreteEventSimulator:
         return self.get_observer_avg_num_packets_in_q()
 
     def get_observer_avg_num_packets_in_q(self):
-        event_pointer = 0
+        num_arrivals = 0
+        num_departed = 0
+        all_events = self.get_sorted_events()
         total_q_size = 0
-        all_events = sorted(self.observer_events + self.events, key=lambda event: event.arrival_time)
-        for event in all_events
-        for observer in self.observer_events:
-            observer_time = observer.arrival_time
-            while event_pointer < len(self.events) and self.events[event_pointer].arrival_time < observer_time:
-                event_pointer += 1
-            if not event_pointer < len(self.events):
-                break
-            cur_event = self.events[event_pointer]
-            total_q_size += cur_event.queue_size
-        # packets_in_q = [self.num_packets_in_q(event.arrival_time) for event in self.observer_events]
-        # avg_packets_in_q = sum(packets_in_q) / len(packets_in_q)
+        for event in all_events:
+            if event[0] == 'Arrival':
+                num_arrivals += 1
+            elif event[0] == 'Departure':
+                num_departed += 1
+            else: # Observer
+                queue_size = num_arrivals - num_departed
+                total_q_size += queue_size
         return total_q_size / len(self.observer_events)
 
     def get_sorted_events(self):
