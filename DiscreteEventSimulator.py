@@ -108,16 +108,13 @@ class DiscreteEventSimulator:
                 num_arrivals += 1
                 num_packets_passed += 1
             elif event[0] == 'Dropped':
-                num_arrivals += 1
+                # num_arrivals += 1
                 num_packets_lost += 1
             elif event[0] == 'Departure':
                 num_departed += 1
             else:  # Observer
                 packet_success_proportion = 0
                 num_packets_in_q = num_arrivals - num_departed
-                # if num_packets_in_q > self.capacity:
-                #     print(f"num_packets_in_q: {num_packets_in_q}, self.capacity: {self.capacity}")
-                #     # raise ValueError
                 if num_packets_passed > 0 or num_packets_lost > 0:
                     packet_success_proportion = num_packets_lost / (num_packets_passed + num_packets_lost)
                 packet_success_proportions.append(packet_success_proportion)
@@ -143,17 +140,18 @@ class DiscreteEventSimulator:
         sorted_events = sorted(observer_events + departure_events + arrival_events, key=lambda x: x[1])
         return sorted_events
 
+    # Set departure times and dropped_events
     def simulate(self):
-        # Set departure times
         i = 1
         while i < len(self.events):
             prev_event = self.events[i - 1]
             cur_event = self.events[i]
             self.move_queue(cur_event.arrival_time)
             cur_event.q_size = len(self.packet_queue)
-            should_enqueue = prev_event.departure_time > cur_event.arrival_time  # or len(self.packet_queue) > 0
+            should_enqueue = prev_event.departure_time > cur_event.arrival_time or len(self.packet_queue) > 0
             if 0 < self.capacity <= len(self.packet_queue):
-                self.dropped_events.append(self.events.pop(i))
+                dropped_event = self.events.pop(i)
+                self.dropped_events.append(dropped_event)
                 # Don't increment so we don't skip any events
             elif should_enqueue:
                 cur_event.was_enqueued = True
