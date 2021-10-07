@@ -1,4 +1,4 @@
-import queue
+from collections import deque
 import time
 import threading
 from NumberGenerator import NumberGenerator
@@ -13,7 +13,7 @@ class DiscreteEventSimulator:
         self.capacity = capacity
         self.simulation_time = simulation_time
 
-        self.packet_queue = queue.Queue(capacity)
+        self.packet_queue = deque()
         self.proportion_lost = 0
         self.events = []
         self.observer_events = []
@@ -80,7 +80,7 @@ class DiscreteEventSimulator:
     def generate_observer_events(self, observer_rate):
         self.observer_events = [Event(arrival_time=NumberGenerator.poisson(observer_rate))]
         i = 1
-        while self.observer_events[-1].arrival_time < self.simulation_time:
+        while self.observer_events[-1].arrival_time < self.events[-1].departure_time:
             prev_event = self.observer_events[i - 1]
             new_event = Event(
                 arrival_time=prev_event.arrival_time + NumberGenerator.poisson(observer_rate),
@@ -95,30 +95,30 @@ class DiscreteEventSimulator:
         num_packets_lost = 0
         num_packets_passed = 0
         packet_success_proportions = []
-        all_events = self.get_sorted_events(include_dropped=True)
+        all_events = self.get_sorted_events(include_dropped=False)
         total_q_size = 0
+        q_size_average = 0.0
+        num_observers = len(self.observer_events)
         for event in all_events:
             if event[0] == 'Arrival':
-                num_packets_in_q = num_arrivals - num_departed
-                if num_packets_in_q >= self.capacity:
-                    num_packets_lost += 1
-                else:
-                    num_arrivals += 1
-                    num_packets_passed += 1
+                num_arrivals += 1
+                num_packets_passed += 1
+            elif event[0] == 'Dropped':
+                num_packets_lost += 1
             elif event[0] == 'Departure':
                 num_departed += 1
             else:  # Observer
                 new_prop = 0
+                num_packets_in_q = num_arrivals - num_departed
                 if num_packets_passed > 0 or num_packets_lost > 0:
                     new_prop = num_packets_lost / (num_packets_passed + num_packets_lost)
                 packet_success_proportions.append(new_prop)
-
-                num_packets_in_q = num_arrivals - num_departed
                 if self.capacity != 0:
                     num_packets_in_q = min(num_packets_in_q, self.capacity)
-                total_q_size += num_packets_in_q
+                q_size_average += num_packets_in_q / num_observers
+                # total_q_size += num_packets_in_q
         self.proportion_lost = sum(packet_success_proportions) / len(self.observer_events)
-        return total_q_size / len(self.observer_events)
+        return q_size_average # total_q_size / len(self.observer_events)
 
     # Includes droppped events
     def get_all_sorted_events(self):
@@ -130,7 +130,7 @@ class DiscreteEventSimulator:
         departure_events = [('Departure', event.departure_time) for event in self.events]
         observer_events = [('Observer', event.arrival_time) for event in self.observer_events]
         if include_dropped:
-            dropped_events = [('Arrival', event.arrival_time) for event in self.dropped_events]
+            dropped_events = [('Dropped', event.arrival_time) for event in self.dropped_events]
             arrival_events += dropped_events
         sorted_events = sorted(observer_events + departure_events + arrival_events, key=lambda x: x[1])
         return sorted_events
@@ -141,16 +141,15 @@ class DiscreteEventSimulator:
         while i < len(self.events):
             prev_event = self.events[i - 1]
             cur_event = self.events[i]
-            should_enqueue = prev_event.departure_time > cur_event.arrival_time or self.packet_queue.qsize() > 0
+            should_enqueue = prev_event.departure_time > cur_event.arrival_time
             # print(f"Q size: {self.packet_queue.qsize()}")
-            if self.packet_queue.full():
+            if 0 < self.capacity <= len(self.packet_queue):
                 cur_event.dropped = True
-                # print("Queue Full!")
                 self.dropped_events.append(self.events.pop(i))
                 # Don't increment so we don't skip any events
             elif should_enqueue:
                 cur_event.departure_time = prev_event.departure_time + cur_event.service_time
-                self.packet_queue.put(cur_event.departure_time)
+                self.packet_queue.append(cur_event.departure_time)
                 i += 1
             else:
                 cur_event.departure_time = cur_event.arrival_time + cur_event.service_time
@@ -159,7 +158,8 @@ class DiscreteEventSimulator:
 
     # dequeues all packets with departure_time < cur_time
     def move_queue(self, cur_time):
-        if self.packet_queue.empty():
+        self.packet_queue = deque(sorted(self.packet_queue))
+        if len(self.packet_queue) == 0:
             return
-        while not self.packet_queue.empty() and self.packet_queue.queue[-1] < cur_time:
-            self.packet_queue.get(False)
+        while len(self.packet_queue) > 0 and self.packet_queue[0] < cur_time:
+            self.packet_queue.popleft()
