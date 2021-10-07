@@ -7,15 +7,16 @@ from multiprocessing.pool import ThreadPool
 
 
 def main():
-    run_MM1_simul()
-    # run_MM1k_simul()
+    # run_MM1_simul()
+    run_MM1k_simul()
+    # debug_MM1k_simul()
 
 
 def run_MM1_simul():
     rhos = [0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
     transmission_rate = 1_000_000
     avg_packet_length = 2000
-    des = DiscreteEventSimulator(transmission_rate=transmission_rate, simulation_time=100)
+    des = DiscreteEventSimulator(transmission_rate=transmission_rate, simulation_time=1000)
     avg_packet_for_all_rhos = []
 
     for i, rho in enumerate(rhos[:]):
@@ -23,7 +24,7 @@ def run_MM1_simul():
         arrival_rate = Utility.get_arrival_rate_from_rho(rho)
         print(f"Lambda: {arrival_rate}")
         observer_rate = arrival_rate * 5
-        avg_q_size = des.create_table(arrival_rate, avg_packet_length, observer_rate)
+        avg_q_size = des.run(arrival_rate, avg_packet_length, observer_rate)
         print(f"Q size: {avg_q_size}")
         avg_packet_for_all_rhos.append(avg_q_size)
         print(f"Packets generated: {len(des.events)}")
@@ -32,9 +33,20 @@ def run_MM1_simul():
     plt.show()
 
 
+def debug_MM1k_simul():
+    rho = 0.8
+    k = 10
+    des = DiscreteEventSimulator(capacity=k, transmission_rate=1_000_000, simulation_time=10)
+    arrival_rate = Utility.get_arrival_rate_from_rho(rho)
+    avg_packet_length = 2000
+    avg_q_size = des.run(arrival_rate, avg_packet_length, avg_packet_length * 5)
+    print(des)
+    print(f"avg_q_size: {avg_q_size}\n")
+
+
 def run_MM1k_simul():
     Ks = [10, 25, 50]
-    rhos = [float(i)/10.0 for i in range(5, 15 + 1)]
+    rhos = [float(i) / 10.0 for i in range(5, 15 + 1)]
     print(rhos)
     transmission_rate = 1_000_000
     avg_packet_length = 2000
@@ -42,20 +54,21 @@ def run_MM1k_simul():
     avg_packet_loss_for_all_ks = []
     avg_packets_in_q_for_all_ks
     for i, k in enumerate(Ks):
-        des = DiscreteEventSimulator(capacity=k, transmission_rate=transmission_rate, simulation_time=50)
+        des = DiscreteEventSimulator(capacity=k, transmission_rate=transmission_rate, simulation_time=1000)
         avg_packet_in_q_for_all_rhos = []
         avg_packet_loss_for_all_rhos = []
 
         for j, rho in enumerate(rhos):
-            print(f"Iteration {i}-{j}, k: {k}, rho: {rho}")
             arrival_rate = Utility.get_arrival_rate_from_rho(rho)
-            print(f"Lambda: {arrival_rate}")
+            print(f"Iteration {i}-{j}, k: {k}, rho: {rho}, lambda: {arrival_rate}")
             observer_rate = arrival_rate * 5
-            avg_q_size = des.create_table(arrival_rate, avg_packet_length, observer_rate)
+            avg_q_size = des.run(arrival_rate, avg_packet_length, observer_rate)
             avg_packet_in_q_for_all_rhos.append(avg_q_size)
             avg_packet_loss_for_all_rhos.append(des.proportion_of_lost_packets())
             print(f"Packets generated: {des.total_num_packets()}")
             print(f"Proportion of packets lost: {avg_packet_loss_for_all_rhos[-1]}")
+            print(f"Average q size:: {avg_q_size}")
+
             # des.print_sorted_events(True)
         avg_packets_in_q_for_all_ks.append(avg_packet_in_q_for_all_rhos)
         avg_packet_loss_for_all_ks.append(avg_packet_loss_for_all_rhos)
@@ -71,6 +84,7 @@ def run_MM1k_simul():
         plt.plot(rhos, avg_packets_in_q_for_all_ks[i], label=str(k))
     plt.title("Average packets in queue for all K values:")
     plt.show()
+
 
 def get_stats(num_trials=100000, lambd=75):
     random_vars = [NumberGenerator.poisson(lambd) for _ in range(0, num_trials)]

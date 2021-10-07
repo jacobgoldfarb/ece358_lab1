@@ -20,23 +20,25 @@ class DiscreteEventSimulator:
         self.dropped_events = []
 
     def __repr__(self):
-        return "Arrival Time\t\tService Time\t\tDeparture\t\tPacket Length\n" + "".join(
+        return "Arrival Time\t\tService Time\t\tDeparture\t\tPacket Length\t\tQ Size\t\tWas Enqueued?\n" + "".join(
             [f"{event.arrival_time}\t"
              f"{event.service_time}\t"
              f"{event.departure_time}\t"
-             f"{event.packet_length}\n"
+             f"{event.packet_length}\t"
+             f"{event.q_size}\t"
+             f"{event.was_enqueued}\n"
              for
              event in self.get_all_sorted_events()]) + f" Dropped Events: {len(self.dropped_events)}\n " \
-                                      f"Succeeded Events: {len(self.get_sorted_events())} \n"
+                                                       f"Succeeded Events: {len(self.get_sorted_events())} \n"
 
     def total_num_packets(self):
         return float(len(self.events) + len(self.dropped_events))
 
     def proportion_of_lost_packets(self):
-        # return len(self.dropped_events) / (len(self.dropped_events) + len(self.events))
+        return len(self.dropped_events) / (len(self.dropped_events) + len(self.events))
         return self.proportion_lost
 
-    def create_table(self, num_packets, arrival_rate, observer_rate):
+    def run(self, num_packets, arrival_rate, observer_rate):
         return self.generate_events(num_packets, arrival_rate, observer_rate)
 
     def generate_events(self, arrival_rate, average_packet_length, observer_rate):
@@ -94,31 +96,37 @@ class DiscreteEventSimulator:
         num_departed = 0
         num_packets_lost = 0
         num_packets_passed = 0
+
         packet_success_proportions = []
-        all_events = self.get_sorted_events(include_dropped=False)
+        all_events = self.get_sorted_events(True)
+
         total_q_size = 0
-        q_size_average = 0.0
         num_observers = len(self.observer_events)
+
         for event in all_events:
             if event[0] == 'Arrival':
                 num_arrivals += 1
                 num_packets_passed += 1
             elif event[0] == 'Dropped':
+                num_arrivals += 1
                 num_packets_lost += 1
             elif event[0] == 'Departure':
                 num_departed += 1
             else:  # Observer
-                new_prop = 0
+                packet_success_proportion = 0
                 num_packets_in_q = num_arrivals - num_departed
+                # if num_packets_in_q > self.capacity:
+                #     print(f"num_packets_in_q: {num_packets_in_q}, self.capacity: {self.capacity}")
+                #     # raise ValueError
                 if num_packets_passed > 0 or num_packets_lost > 0:
-                    new_prop = num_packets_lost / (num_packets_passed + num_packets_lost)
-                packet_success_proportions.append(new_prop)
+                    packet_success_proportion = num_packets_lost / (num_packets_passed + num_packets_lost)
+                packet_success_proportions.append(packet_success_proportion)
                 if self.capacity != 0:
                     num_packets_in_q = min(num_packets_in_q, self.capacity)
-                q_size_average += num_packets_in_q / num_observers
+                total_q_size += num_packets_in_q
                 # total_q_size += num_packets_in_q
-        self.proportion_lost = sum(packet_success_proportions) / len(self.observer_events)
-        return q_size_average # total_q_size / len(self.observer_events)
+        self.proportion_lost = sum(packet_success_proportions) / num_observers
+        return total_q_size / num_observers
 
     # Includes droppped events
     def get_all_sorted_events(self):
@@ -141,20 +149,20 @@ class DiscreteEventSimulator:
         while i < len(self.events):
             prev_event = self.events[i - 1]
             cur_event = self.events[i]
-            should_enqueue = prev_event.departure_time > cur_event.arrival_time
-            # print(f"Q size: {self.packet_queue.qsize()}")
+            self.move_queue(cur_event.arrival_time)
+            cur_event.q_size = len(self.packet_queue)
+            should_enqueue = prev_event.departure_time > cur_event.arrival_time  # or len(self.packet_queue) > 0
             if 0 < self.capacity <= len(self.packet_queue):
-                cur_event.dropped = True
                 self.dropped_events.append(self.events.pop(i))
                 # Don't increment so we don't skip any events
             elif should_enqueue:
+                cur_event.was_enqueued = True
                 cur_event.departure_time = prev_event.departure_time + cur_event.service_time
                 self.packet_queue.append(cur_event.departure_time)
                 i += 1
             else:
                 cur_event.departure_time = cur_event.arrival_time + cur_event.service_time
                 i += 1
-            self.move_queue(cur_event.arrival_time)
 
     # dequeues all packets with departure_time < cur_time
     def move_queue(self, cur_time):

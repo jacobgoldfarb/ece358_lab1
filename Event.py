@@ -11,6 +11,8 @@ class Event:
         self.type = type
         self.arrival_time = arrival_time
         self.departure_time = 0
+        self.q_size = 0
+        self.was_enqueued = False
         self.packet_length = length
         self.service_time = length / transmission_rate
         self.dropped = False
