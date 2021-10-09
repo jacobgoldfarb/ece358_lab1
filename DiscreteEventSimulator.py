@@ -1,7 +1,5 @@
 from collections import deque
-import time
-import threading
-from NumberGenerator import NumberGenerator
+from Utility import Utility
 from Event import Event
 
 
@@ -18,18 +16,7 @@ class DiscreteEventSimulator:
         self.events = []
         self.observer_events = []
         self.dropped_events = []
-
-    def __repr__(self):
-        return "Arrival Time\t\tService Time\t\tDeparture\t\tPacket Length\t\tQ Size\t\tWas Enqueued?\n" + "".join(
-            [f"{event.arrival_time}\t"
-             f"{event.service_time}\t"
-             f"{event.departure_time}\t"
-             f"{event.packet_length}\t"
-             f"{event.q_size}\t"
-             f"{event.was_enqueued}\n"
-             for
-             event in self.get_all_sorted_events()]) + f" Dropped Events: {len(self.dropped_events)}\n " \
-                                                       f"Succeeded Events: {len(self.get_sorted_events())} \n"
+        self.q_idle_proportions = 0
 
     def total_num_packets(self):
         return float(len(self.events) + len(self.dropped_events))
@@ -48,8 +35,8 @@ class DiscreteEventSimulator:
 
     def generate_packet_events(self, arrival_rate, average_packet_length):
         self.events = [Event(
-            arrival_time=NumberGenerator.poisson(arrival_rate),  # length/arrival rate
-            length=NumberGenerator.poisson(1 / average_packet_length),
+            arrival_time=Utility.poisson(arrival_rate),  # length/arrival rate
+            length=Utility.poisson(1 / average_packet_length),
             transmission_rate=self.transmission_rate
         )]
         self.events[0].departure_time = self.events[0].arrival_time + self.events[0].service_time
@@ -57,35 +44,20 @@ class DiscreteEventSimulator:
         while self.events[-1].arrival_time < self.simulation_time:
             prev_event = self.events[i - 1]
             new_event = Event(
-                arrival_time=prev_event.arrival_time + NumberGenerator.poisson(arrival_rate),
-                length=NumberGenerator.poisson(1 / average_packet_length),
+                arrival_time=prev_event.arrival_time + Utility.poisson(arrival_rate),
+                length=Utility.poisson(1 / average_packet_length),
                 transmission_rate=self.transmission_rate
             )
             self.events.append(new_event)
             i += 1
 
-    def print_sorted_events(self, include_dropped=False):
-        events = self.get_sorted_events()
-        if include_dropped:
-            dropped = [('Dropped', event.arrival_time) for event in self.dropped_events]
-            events = sorted(events + dropped, key=lambda event: event[1])
-        num_arrivals = 0
-        num_departures = 0
-        for event in events:
-            if event[0] == 'Arrival':
-                num_arrivals += 1
-            elif event[0] == 'Departure':
-                num_departures += 1
-            q_size = num_arrivals - num_departures
-            print(f"{event[0]}: {event[1]} {q_size}")
-
     def generate_observer_events(self, observer_rate):
-        self.observer_events = [Event(arrival_time=NumberGenerator.poisson(observer_rate))]
+        self.observer_events = [Event(arrival_time=Utility.poisson(observer_rate))]
         i = 1
         while self.observer_events[-1].arrival_time < self.events[-1].departure_time:
             prev_event = self.observer_events[i - 1]
             new_event = Event(
-                arrival_time=prev_event.arrival_time + NumberGenerator.poisson(observer_rate),
+                arrival_time=prev_event.arrival_time + Utility.poisson(observer_rate),
             )
             self.observer_events.append(new_event)
             i += 1
@@ -98,8 +70,9 @@ class DiscreteEventSimulator:
         num_packets_passed = 0
 
         packet_success_proportions = []
-        all_events = self.get_sorted_events(True)
 
+        all_events = self.get_sorted_events(True)
+        local_q_idle_proportions = 0
         total_q_size = 0
         num_observers = len(self.observer_events)
 
@@ -121,8 +94,10 @@ class DiscreteEventSimulator:
                 if self.capacity != 0:
                     num_packets_in_q = min(num_packets_in_q, self.capacity)
                 total_q_size += num_packets_in_q
+                local_q_idle_proportions += 1 if num_packets_in_q > 0 else 0
                 # total_q_size += num_packets_in_q
         self.proportion_lost = sum(packet_success_proportions) / num_observers
+        self.q_idle_proportions = local_q_idle_proportions / num_observers
         return total_q_size / num_observers
 
     # Includes droppped events
