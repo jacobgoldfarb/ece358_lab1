@@ -36,7 +36,7 @@ def run_MM1_simul():
     plt.plot(rhos, avg_packet_idle_for_all_rhos)
     plt.title("Queue idle time vs. utilization:")
     plt.xlabel("utilization")
-    plt.ylabel("average number of packets lost")
+    plt.ylabel("proportion of time idle")
     plt.show()
 
 def run_MM1k_simul():

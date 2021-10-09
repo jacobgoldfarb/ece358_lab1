@@ -94,7 +94,7 @@ class DiscreteEventSimulator:
                 if self.capacity != 0:
                     num_packets_in_q = min(num_packets_in_q, self.capacity)
                 total_q_size += num_packets_in_q
-                local_q_idle_proportions += 1 if num_packets_in_q > 0 else 0
+                local_q_idle_proportions += 1 if num_packets_in_q == 0 else 0
                 # total_q_size += num_packets_in_q
         self.proportion_lost = sum(packet_success_proportions) / num_observers
         self.q_idle_proportions = local_q_idle_proportions / num_observers
