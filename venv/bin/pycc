@@ -1,3 +1,0 @@
-#!/Users/jacobgoldfarb/School/4A/ECE 358/Labs/lab1/venv/bin/python
-from numba.pycc import main
-main()
