@@ -80,7 +80,7 @@ class DiscreteEventSimulator:
         num_departed = 0
         num_packets_lost = 0
         num_packets_passed = 0
-        packet_loss_proportions = 0
+        total_packet_loss_proportions = 0
 
         all_events = self.get_sorted_events(True)
         local_q_idle_proportions = 0
@@ -100,19 +100,19 @@ class DiscreteEventSimulator:
             elif event[0] == 'Departure':
                 num_departed += 1
             else:  # Observer, calculate all metrics necessary
-                packet_success_proportion = 0
+                packet_loss_proportion = 0
                 # num_packets_in_q = num_arrivals - num_departed
                 # Avoid divide by zero errors
                 if num_packets_passed > 0 or num_packets_lost > 0:
-                    packet_success_proportion = num_packets_lost / (num_packets_passed + num_packets_lost)
-                packet_loss_proportions += packet_success_proportion
+                    packet_loss_proportion = num_packets_lost / (num_packets_passed + num_packets_lost)
+                total_packet_loss_proportions += packet_loss_proportion
                 # capacity = 0 means the simulation is M/M/1
                 if self.capacity != 0:
                     num_packets_in_q = min(num_packets_in_q, self.capacity)
                 total_q_size += num_packets_in_q
                 local_q_idle_proportions += 1 if num_packets_in_q == 0 else 0
         # Set metrics to average based on number of observers
-        self.proportion_lost = packet_loss_proportions / num_observers
+        self.proportion_lost = total_packet_loss_proportions / num_observers
         self.q_idle_proportions = local_q_idle_proportions / num_observers
         self.avg_q_size = total_q_size / num_observers
 
