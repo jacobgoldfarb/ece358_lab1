@@ -94,7 +94,7 @@ def run_MM1k_simul():
         avg_packet_in_q_for_all_rhos = []
         avg_packet_loss_for_all_rhos = []
         for j, rho in enumerate(rhos):
-            des = DiscreteEventSimulator(capacity=k, transmission_rate=transmission_rate, simulation_time=150)
+            des = DiscreteEventSimulator(capacity=k, transmission_rate=transmission_rate, simulation_time=1000)
             arrival_rate = Utility.get_arrival_rate_from_rho(rho)
             print(f"Iteration {i}-{j}, k: {k}, rho: {rho}, lambda: {arrival_rate}")
             observer_rate = arrival_rate * 5
